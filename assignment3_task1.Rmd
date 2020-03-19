@@ -1,0 +1,25 @@
+---
+title: "Assignment 3 Task 1"
+author: "Jessica Jagdeo"
+date: "3/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####Task 1: SB creek water chemistry, multivariate exploration & analysis
+
+You have a number of tools in your multivariate analysis & exploration toolbelt, like:
+
+- Multiple linear regression
+- Correlation matrices
+- Principal components analysis
+- K-means clustering
+- Hierarchical clustering
+
+For Task 1, you should explore, analyze and visualize a multivariate dataset using at least 3 of the methods listed above (more if you feel inspired). Prepare your analysis and findings in a single knitted HTML that can be featured as a project to highlight your data analysis and coding skills (e.g. on yourpersonal website). The analysis should provide a short introduction, clear subsections and descriptions, and insights/summaries of relationships between variables and between groups.
+
+You can decide which variables and observations you want to explore/include. For example: You might narrow the data to just a few sites of interest, or only include complete cases (with no NAs) for cluster analyses. Hint: if you’re doing hierarchical clustering by site , you’ll want to make a data frame that has
+a single summary row per site (e.g. based on means from all observations at that site), then calculate the euclidean distance.

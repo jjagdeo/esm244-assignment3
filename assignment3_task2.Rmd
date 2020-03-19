@@ -1,0 +1,30 @@
+---
+title: "Assignment 3 Task 2"
+author: "Jessica Jagdeo"
+date: "3/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####Task 2: Text mining & analysis - coder’s choice
+
+For Task 2, use text mining and analysis to explore a document of your choosing.
+Some ideas:
+
+● There are many books with text publicly available (e.g. Silent Spring ) through the Internet Archive
+(you can find tons of options here, download either as PDF or get a .txt file)
+● You can get all the text from Harry Potter books to analyze by book, chapter, etc.
+● You can copy and paste text (e.g. from transcripts, reports, etc.) and read in as a txt file
+
+Create a single knitted HTML that introduces the document, describes the goals of your analyses, shows your beautifully organized code + nice analyses + finalized data visualizations, and briefly describes some of your findings. Some questions might be:
+
+- What (non-stop) words are most common in the document?
+- How many words are associated with each sentiment?
+- How does sentiment analysis compare for the different lexicons?
+- How many times do words of interest to you appear in the text?
+- How do sentiment/top words compare for speeches/documents/etc. from two or more different groups, candidates, etc.?
+
+You should include at least 2 finalized visualizations (e.g. word cloud, graphs/visualizations of word counts & sentiment analysis, etc.) for this task, with summaries of your major observations for each.
