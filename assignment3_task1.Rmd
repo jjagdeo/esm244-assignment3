@@ -6,7 +6,9 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE,
+                      warning = FALSE)
 ```
 
 ####Task 1: SB creek water chemistry, multivariate exploration & analysis
@@ -23,3 +25,140 @@ For Task 1, you should explore, analyze and visualize a multivariate dataset usi
 
 You can decide which variables and observations you want to explore/include. For example: You might narrow the data to just a few sites of interest, or only include complete cases (with no NAs) for cluster analyses. Hint: if you’re doing hierarchical clustering by site , you’ll want to make a data frame that has
 a single summary row per site (e.g. based on means from all observations at that site), then calculate the euclidean distance.
+
+#### 1. Load packages and read in data
+```{r}
+
+library(tidyverse)
+library(naniar)
+library(VIM)
+library(skimr)
+library(ggfortify)
+library(NbClust)
+library(cluster)
+library(factoextra)
+library(dendextend)
+library(ggdendro)
+
+```
+
+```{r}
+
+sb_creek <- read_csv("sbc_lter_registered_stream_chemistry.csv")
+
+# NH4: ammonium
+# NO3: nitrate
+# PO4: phosphorus
+# TDN: total dissolved nitrogen
+# TDP: total dissolved phosphorus
+# TPC: total particulate carbon
+# TPN: total particulate nitrogen
+# TPP: total particulate phosphorus
+# TSS: total suspended solids
+# Spec_Cond: specific conductivity
+
+```
+
+#### 2. Examine and remove NAs
+```{r}
+
+sb_creek_na <- na_if(sb_creek, -999.0)
+
+summary(sb_creek_na)
+
+gg_miss_var(sb_creek_na)
+
+# Remove the columns in which most observations are NAs and remove NAs from rest of the columns
+
+sb_creek_clean <- sb_creek_na %>% 
+  select(-tpc_uM,
+         -tpn_uM,
+         -tpp_uM,
+         -tss_mgperLiter) %>% 
+  drop_na()
+
+# Reduced dataset from 19,000 to 12,000 observations
+
+skim(sb_creek_clean)
+
+```
+
+#### 3. Principle components analysis
+```{r}
+
+sb_creek_pca <- sb_creek_clean %>% 
+  select(-site_code,
+         -timestamp_local)
+
+sb_creek_chem_pca <- prcomp(sb_creek_pca, scale = TRUE)
+
+summary(sb_creek_chem_pca)
+
+# Plot PCA results to visualize associations
+
+sb_creek_biplot <- autoplot(sb_creek_chem_pca, 
+                      colour = "NA",
+                      loadings.colour = "blue",
+                      loadings.label = TRUE,
+                      loadings.label.size = 3,
+                      loadings.label.colour = "black",
+                      loadings.label.repel = TRUE) +
+                      theme_classic() 
+  
+
+sb_creek_biplot
+
+# Biplot captures about 65% of variance
+
+```
+
+**Figure 1. Principal components analysis biplot showing the associations between chemistry samples taken from Santa Barbara Creek.** Variables depicted by this biplot include ammonium, nitrate, phosphorus, total dissolved nitrogen, total dissolved phosphorus, and specific conductivity. Data source: Melack, J.
+
+To summarize key observations from Figure 1:
+
+1) There is a strong, positive correlation between phosphorus and total dissolved phosphorus.
+
+2) There is a positive correlation between nitrogen and total dissolved nitrogen (not as strong as the relationship in 1).
+
+3) There is no correlation between specific conductivity and phosphorus/total dissolved phosphorus.
+
+#### 4. Cluster analysis
+```{r}
+
+# Asking R: How many clusters do you think there should be for this dataset?
+
+# number_est <- NbClust(sb_creek_clean[3:8], 
+#                       min.nc = 2,
+#                       max.nc = 5,
+#                       method = "kmeans")
+
+# Do kmeans:
+sb_creek_km <- kmeans(sb_creek_clean[3:8], 3)
+
+# Bind the cluster number together with the original data:
+sb_creek_cl <- data.frame(sb_creek_clean, cluster_no = factor(sb_creek_km$cluster))
+
+# Plot my different clusters:
+ggplot(data = sb_creek_cl) +
+  geom_point(aes(x = no3_uM, y = nh4_uM, color = cluster_no)) +
+  theme_classic()
+
+```
+
+**Figure 2. Cluster analysis via k means to categorize SB Creek chemistry samples into three clusters.** Data source: Melack, J.
+
+#### 5. Multiple linear regression
+```{r}
+
+sb_creek_lm <- lm(spec_cond_uSpercm ~ nh4_uM + no3_uM + po4_uM + tdn_uM + tdp_uM, data = sb_creek_clean)
+
+summary(sb_creek_lm)
+
+plot(sb_creek_lm)
+
+# This is a really bad model.... These chemistry values do not significantly predict specific conductivity
+
+# Probably should not be running multiple linear regression for this data set!
+
+```
+
