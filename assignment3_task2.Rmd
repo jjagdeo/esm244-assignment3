@@ -6,7 +6,9 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
 ```
 
 ####Task 2: Text mining & analysis - coder’s choice
@@ -28,3 +30,203 @@ Create a single knitted HTML that introduces the document, describes the goals o
 - How do sentiment/top words compare for speeches/documents/etc. from two or more different groups, candidates, etc.?
 
 You should include at least 2 finalized visualizations (e.g. word cloud, graphs/visualizations of word counts & sentiment analysis, etc.) for this task, with summaries of your major observations for each.
+
+This project conducts text mining and sentiment analysis on "20th Century Caribbean Literature" by Alison Hinds. The purpose is to examine the most frequent words used in this book, and the sentiments associated with these words. Based on the analysis, a few of the most frequent words used are caribbean, indian, black, literature, sexual, jamaican, cultural. Interestingly, but not surprisingly, one of the word banks associates the word "black" with negativity and sadness, while "white" is associated with joy and trust. The sentiments associated with these words illustrate how deep inadvertent prejudice is within our society. People inadvertently associate black and white with opposing emotions, leading to the creation of a lexicon describing these sentiments in negative and positive ways. 
+
+#### 1. Load packages 
+```{r}
+
+library(tidyverse)
+library(here)
+library(janitor)
+
+# For text mining:
+
+library(pdftools)
+library(tidytext)
+library(textdata)
+library(ggwordcloud)
+
+```
+
+#### 2. Read in the data 
+```{r}
+
+carib_path <- "epdf.pub_twentieth-century-caribbean-literature.pdf"
+
+carib_text <- pdf_text(carib_path)
+
+```
+
+#### Get this into dataframe shape and do some wrangling:
+
+- Split up pages into separate lines (using '\r\n') using 'stringr::str_split()'
+- Unnest into regular columns using 'tidyr::unnest()' 
+- Remove leading/trailing white space using 'stringr::str_trim()'
+
+```{r}
+
+carib_df <- data.frame(carib_text) %>% 
+  mutate(text_full = str_split(carib_text, pattern = "\r\n")) %>% 
+  unnest(text_full) %>% 
+  mutate(text_full = str_trim(text_full))
+
+```
+
+#### Get tokens using 'unnest_tokens()'
+```{r}
+
+carib_tokens <- carib_df %>% 
+  unnest_tokens(word, text_full)
+
+```
+
+#### Count all the words:
+```{r}
+
+carib_wc <- carib_tokens %>% 
+  count(word) %>% 
+  arrange(-n)
+
+```
+
+#### Remove the stop words:
+```{r}
+
+carib_stop <- carib_tokens %>% 
+  anti_join(stop_words) %>% 
+  dplyr::select(-carib_text)
+
+```
+
+#### Remove all the numeric pieces:
+```{r}
+
+carib_no_numeric <- carib_stop %>% 
+  dplyr::filter(is.na(as.numeric(word))) # Convert all entries to numeric. If the entry is not a numeric, it returns 'NA'. If an entry is 'NA', retain it through the filter. 
+
+```
+
+#### Start doing some visualization:
+
+Word cloud
+```{r}
+
+carib_top100 <- carib_no_numeric %>% 
+  count(word) %>% 
+  arrange(-n) %>% 
+  head(100)
+
+carib_cloud <- ggplot(carib_top100, aes(label = word)) +
+  geom_text_wordcloud() +
+  theme_classic()
+
+carib_cloud
+
+ggplot(carib_top100, aes(label = word, size = n)) +
+  geom_text_wordcloud_area(aes(color = n), shape = "diamond") +
+  scale_size_area(max_size = 12) +
+  scale_color_gradientn(colors = c("darkgreen", "blue", "purple")) +
+  theme_classic()
+
+```
+
+#### 3. Sentiment analysis
+
+```{r}
+get_sentiments(lexicon = "afinn")
+
+get_sentiments(lexicon = "bing")
+
+get_sentiments(lexicon = "nrc")
+
+```
+
+### Bind together words:
+```{r}
+
+carib_afinn <- carib_stop %>% 
+  inner_join(get_sentiments(lexicon = "afinn"))
+
+#"afinn": Words ranked from -5 (very negative) to +5 (very positive)
+
+```
+
+### Find counts of value rankings: 
+```{r}
+
+carib_afinn_hist <- carib_afinn %>% 
+  count(value) %>% 
+  ggplot() +
+  geom_col(aes(x = value, y = n))
+
+carib_afinn_hist
+
+# Most words having a ranking of -2
+
+```
+
+### Summarize 
+```{r}
+
+carib_summary <-  carib_afinn %>% 
+  summarize(
+    mean_score = mean(value),
+    median_score = median(value)
+  )
+
+```
+
+#### Check out sentiments by NRC
+```{r}
+
+carib_nrc <- carib_stop %>% 
+  inner_join(get_sentiments(lexicon = "nrc"))
+
+# See what's excluded:
+
+carib_exclude <- carib_stop %>% 
+  anti_join(get_sentiments(lexicon = "nrc"))
+
+# NRC is problematic. Why is homosexuality negative? And why is 'black' associated with negative and sadness?
+
+# In addition, NRC excludes most words in this document, probably because they're not traditional/common American words. Some excluded words: caribbean, anglophone, colonialism (that should be a negative)
+
+```
+
+#### Find counts by sentiment:
+```{r}
+
+carib_nrc_n <- carib_nrc %>% 
+  count(sentiment, sort = TRUE) %>% 
+  mutate(sentiment = as.factor(sentiment)) %>% 
+  mutate(sentiment = fct_reorder(sentiment, -n))
+
+ggplot(carib_nrc_n) +
+  geom_col(aes(x = sentiment, y = n)) +
+  theme_classic()
+
+```
+
+For each sentiment bin, what are the top 5 most frequent words associated with that bin?
+
+```{r}
+
+carib_nrc_n5 <- carib_nrc %>% 
+  count(word, sentiment, sort = TRUE) %>% 
+  group_by(sentiment) %>% 
+  top_n(5)
+
+carib_nrc_gg <- ggplot(data = carib_nrc_n5,
+                      aes(x = reorder(word, n),
+                          y = n,
+                          fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, ncol = 2, scales = "free")
+
+carib_nrc_gg
+
+# And white is associated with joy and trust... wow
+
+```
+
